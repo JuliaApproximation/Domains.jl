@@ -30,7 +30,7 @@ import Base: *, +, -, /, \, ^,
     # Display
     show,
     # Various
-    Bool
+    Bool, angle
 
 # IntervalSets
 import IntervalSets: (..), endpoints, Domain, AbstractInterval, TypedEndpointsInterval,
@@ -137,6 +137,8 @@ export UnitCircle, VectorUnitCircle,
     ComplexUnitCircle, ComplexUnitDisk,
     ellipse, ellipse_shape, cylinder,
     parameterization, gradient
+# from domains/segment.jl
+export Segment, arclength
 
 ## Applications
 # from applications/rotation.jl
@@ -168,6 +170,7 @@ include("domains/point.jl")
 include("domains/interval.jl")
 include("domains/simplex.jl")
 include("domains/ball.jl")
+include("domains/segment.jl")
 
 include("applications/rotation.jl")
 

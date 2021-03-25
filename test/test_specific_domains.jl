@@ -706,6 +706,9 @@ end
         @test SVector(nextfloat(1.0),0,0) ∉ D
     end
 
+    @testset "segment" begin
+        @test 0.45-0.65im ∉ Segment(-1,1)
+    end
 
     @testset "mapped_domain" begin
         # Test chaining of maps
