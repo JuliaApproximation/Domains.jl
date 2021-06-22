@@ -101,6 +101,7 @@ export Domain, EuclideanDomain, VectorDomain,
     interior, closure,
     volume,
     point_in_domain,
+    normal, tangents, distance_to,
     canonicaldomain, mapto_canonical, mapfrom_canonical, hascanonicaldomain,
     mapto,
     parameterdomain, parameterization, hasparameterization,
@@ -212,6 +213,7 @@ include("domains/cube.jl")
 include("domains/indicator.jl")
 include("domains/boundingbox.jl")
 
+include("applications/coordinates.jl")
 include("applications/rotation.jl")
 
 end # module

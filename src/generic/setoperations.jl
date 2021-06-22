@@ -1,6 +1,6 @@
 # The union, intersection and difference of domains are represented with lazy domains.
 
-issubset(d1::Domain, d2::Domain) = compatible_eltype(d1, d2) && issubset1(promote_domains(d1, d2)...)
+issubset(d1::Domain, d2::Domain) = promotable_domains(d1, d2) && issubset1(promote_domains(d1, d2)...)
 issubset(d1::Domain, d2) = issubset1(promote_domains(d1, d2)...)
 issubset(d1, d2::Domain) = issubset1(promote_domains(d1, d2)...)
 issubset1(d1, d2) = issubset2(d1, d2)
@@ -76,11 +76,12 @@ _ud(d1, d2, d3, domains...) = uniondomain(uniondomain(d1, d2, d3), domains...)
 
 # avoid nested union domains
 uniondomain(d1::UnionDomain, d2::UnionDomain) =
-	d1 == d2 ? d1 : UnionDomain(components(d1)..., components(d2)...)
+	d1 == d2 ? d1 : UnionDomain(collect(Set(components(d1)) ∪ Set(components(d2))))
 uniondomain1(d1::UnionDomain, d2) = UnionDomain(components(d1)..., d2)
 uniondomain2(d1, d2::UnionDomain) = UnionDomain(d1, components(d2)...)
 
 ==(a::UnionDomain, b::UnionDomain) = Set(components(a)) == Set(components(b))
+hash(d::UnionDomain, h::UInt) = hashrec("UnionDomain", Set(d.domains), h)
 
 
 convert(::Type{Domain}, v::AbstractVector{<:Domain}) = UnionDomain(v)
@@ -93,7 +94,6 @@ convert(::Type{Domain{T}}, s::AbstractSet) where {T} = UnionDomain{T}(map(Point,
 similardomain(d::UnionDomain, ::Type{T}) where {T} =
     UnionDomain(convert.(Domain{T}, components(d)))
 
-hash(d::UnionDomain, h::UInt) = hash(Set(d.domains), h)
 
 
 point_in_domain(d::UnionDomain) = convert(eltype(d), point_in_domain(component(d,1)))
@@ -104,6 +104,8 @@ interior(d::UnionDomain) = UnionDomain(map(interior, components(d)))
 closure(d::UnionDomain) = UnionDomain(map(closure, components(d)))
 
 boundingbox(d::UnionDomain) = unionbox(map(boundingbox, components(d))...)
+
+boundary(d::UnionDomain) = uniondomain(map(boundary, components(d))...)
 
 Display.combinationsymbol(d::UnionDomain) = Display.Symbol('∪')
 Display.displaystencil(d::UnionDomain) = composite_displaystencil(d)
@@ -246,6 +248,7 @@ similardomain(d::IntersectDomain, ::Type{T}) where {T} =
     IntersectDomain(convert.(Domain{T}, components(d)))
 
 ==(a::IntersectDomain, b::IntersectDomain) = Set(components(a)) == Set(components(b))
+hash(d::IntersectDomain, h::UInt) = hashrec("IntersectDomain", Set(components(d)), h)
 
 boundingbox(d::IntersectDomain) = intersectbox(map(boundingbox, components(d))...)
 

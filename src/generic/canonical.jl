@@ -12,12 +12,15 @@ For example, the canonical domain of an Interval `[a,b]` is the interval `[-1,1]
 """
 canonicaldomain(d::Domain) = d
 
+"""
+Check whether the given arguments are different. They are different when
+they have a different type, or if they have the same type but they are not equal.
+"""
+isdifferentfrom(d1::D, d2::D) where D = !(d1==d2)
+isdifferentfrom(d1, d2) = true
+
 "Does the domain have a canonical domain?"
-hascanonicaldomain(d) = _hascanonicaldomain(d, canonicaldomain(d))
-# the domain and the canonical domain have the same type: check equality
-_hascanonicaldomain(d::D, cd::D) where {D} = !(d==cd)
-# they have a different type: result is true even if the domains are equal
-_hascanonicaldomain(d, cd) = true
+hascanonicaldomain(d) = isdifferentfrom(d, canonicaldomain(d))
 
 identitymap(d) = IdentityMap{eltype(d)}(dimension(d))
 
@@ -34,7 +37,7 @@ mapto_canonical(d, x) = mapto_canonical(d)(x)
 abstract type CanonicalType end
 
 canonicaldomain(ctype::CanonicalType, d) = d
-hascanonicaldomain(ctype::CanonicalType, d) = _hascanonicaldomain(d, canonicaldomain(ctype, d))
+hascanonicaldomain(ctype::CanonicalType, d) = isdifferentfrom(d, canonicaldomain(ctype, d))
 
 mapfrom_canonical(ctype::CanonicalType, d, x) = mapfrom_canonical(ctype, d)(x)
 mapto_canonical(ctype::CanonicalType, d, x) = mapto_canonical(ctype, d)(x)
@@ -48,7 +51,7 @@ mapfrom_canonical(::Equal, d) = identitymap(d)
 mapto_canonical(::Equal, d) = leftinverse(mapto_canonical(Equal(), d))
 
 simplify(d) = canonicaldomain(Equal(), d)
-simplifies(d) = !(simplify(d)===d)
+simplifies(d) = hascanonicaldomain(Equal(), d)
 
 "A canonical domain that is isomorphic but may have different element type."
 struct Isomorphic <: CanonicalType end

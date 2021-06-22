@@ -28,6 +28,8 @@ interior(d::EmptySpace) = d
 closure(d::EmptySpace) = d
 boundingbox(d::EmptySpace) = d
 
+distance_to(d::EmptySpace, x) = convert(prectype(d), Inf)
+
 # Arithmetic operations
 
 issubset1(d1::EmptySpace, d2) = true
@@ -41,6 +43,7 @@ mapped_domain(map::Map, d::EmptySpace) = EmptySpace{codomaintype(map)}()
 ==(d1::EmptySpace, d2::EmptySpace) = true
 isequal1(d1::EmptySpace, d2) = isempty(d2)
 isequal2(d1, d2::EmptySpace) = isempty(d1)
+hash(d::EmptySpace, h::UInt) = hash("EmptySpace", h)
 
 
 "The full space of elements of type `T`."
@@ -79,6 +82,8 @@ boundary(d::FullSpace{T}) where {T} = EmptySpace{T}()
 interior(d::FullSpace) = d
 closure(d::FullSpace) = d
 
+distance_to(d::FullSpace, x) = zero(prectype(d))
+
 # Arithmetic operations
 
 issubset1(d1::FullSpace, d2) = isfullspace(d2)
@@ -89,6 +94,7 @@ map_domain(m::AbstractAffineMap{T}, d::FullSpace{T}) where {T} = d
 ==(d1::FullSpace, d2::FullSpace) = true
 isequal1(d1::FullSpace, d2) = isfullspace(d2)
 isequal2(d1, d2::FullSpace) = isfullspace(d1)
+hash(d::FullSpace, h::UInt) = hash("FullSpace", h)
 
 
 convert(::Type{Domain}, ::Type{T}) where T = FullSpace{T}()

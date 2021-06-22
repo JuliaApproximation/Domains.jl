@@ -7,6 +7,7 @@ composition(d::ProductDomain) = Product()
 components(d::ProductDomain) = d.domains
 
 ==(d1::ProductDomain, d2::ProductDomain) = mapreduce(==, &, components(d1), components(d2))
+hash(d::ProductDomain, h::UInt) = hashrec("ProductDomain", collect(components(d)), h)
 
 isempty(d::ProductDomain) = any(isempty, components(d))
 isclosedset(d::ProductDomain) = all(isclosedset, components(d))
@@ -16,6 +17,8 @@ issubset(d1::ProductDomain, d2::ProductDomain) =
 	compatibleproductdims(d1, d2) && all(map(issubset, components(d1), components(d2)))
 
 volume(d::ProductDomain) = prod(map(volume, components(d)))
+
+distance_to(d::ProductDomain, x) = sqrt(sum(distance_to(component(d, i), x[i])^2 for i in 1:ncomponents(d)))
 
 compatibleproductdims(d1::ProductDomain, d2::ProductDomain) =
 	dimension(d1) == dimension(d2) &&
@@ -29,10 +32,11 @@ show(io::IO, d::ProductDomain) = composite_show_compact(io, d)
 boundary_part(d::ProductDomain{T}, domains, i) where {T} =
 	ProductDomain{T}(domains[1:i-1]..., boundary(domains[i]), domains[i+1:end]...)
 
-boundary(d::ProductDomain) = _boundary(d, components(d))
-_boundary(d::ProductDomain, domains) =
+boundary(d::ProductDomain) = productboundary(d)
+productboundary(d) = productboundary(d, components(d))
+productboundary(d, domains) =
 	UnionDomain(boundary_part(d, domains, i) for i in 1:length(domains))
-_boundary(d::ProductDomain, domains::Tuple) =
+productboundary(d, domains::Tuple) =
 	UnionDomain(tuple((boundary_part(d, domains, i) for i in 1:length(domains))...))
 
 boundingbox(d::ProductDomain{T}) where {T} = ProductDomain{T}(map(boundingbox, components(d)))

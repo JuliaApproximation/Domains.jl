@@ -133,7 +133,7 @@ function test_generic_jacobian(m)
     end
 end
 
-# Test a map m with dimensions n
+# generic map test suite
 function test_generic_map(m)
     @test convert(Map{domaintype(m)}, m) == m
 
@@ -286,6 +286,11 @@ function test_affine_maps(T)
     @test DomainSets.to_vector(SVector{2,T}, 2) == SVector(0,0)
     @test DomainSets.to_vector(Vector{T}, A) == [0,0]
     @test DomainSets.to_vector(T, 2, 3) == 3
+
+    if T != BigFloat    # BigFloat's make pinv fail for StaticArrays
+        @test DomainSets.matrix_pinv(SMatrix{2,2}(rand(T),rand(T),rand(T),rand(T))) isa SMatrix{2,2}
+        @test DomainSets.matrix_pinv(SVector(rand(T),rand(T))) isa Transpose{T,SVector{2,T}}
+    end
 
     test_linearmap(T)
     test_translation(T)
@@ -486,6 +491,7 @@ function test_identity_map(T)
     test_generic_map(i1)
     test_generic_map(i2)
     @test i1 == i2
+    @test hash(i1) == hash(i2)
     @test islinear(i1)
     @test isaffine(i1)
     @test convert(StaticIdentityMap{SVector{2,T}}, i1) === i2
@@ -504,12 +510,15 @@ function test_identity_map(T)
     test_generic_map(i3)
     r = rand(T, 10)
     @test i3(r) ≈ r
+    @test hash(i3) == hash(VectorIdentityMap{Int}(10))
 
     @test IdentityMap() ∘ LinearMap(2) == LinearMap(2.0)
 end
 
 function test_basic_maps(T)
     @test UnityMap{SVector{2,Float64}}() == UnityMap{SVector{2,Float64},Float64}()
+    @test hash(ConstantMap(2)) == hash(ConstantMap(2.0))
+    @test DomainSets.absmap(ConstantMap(-2)) == ConstantMap(2)
 end
 
 function test_composite_map(T)
@@ -597,6 +606,9 @@ function test_product_map(T)
     test_generic_map(m4)
     @test m4(SVector(r1,r2,r3,r4,r5)) ≈ SVector(m1(SVector(r1,r2))...,m2(SVector(r3,r4,r5))...)
 
+    @test ProductMap(ma, mb) == ProductMap([ma,mb])
+    @test hash(ProductMap(ma, mb)) == hash(ProductMap([ma,mb]))
+
     m5 = productmap(AffineMap(SMatrix{2,2,T}(1.0,2,3,4), SVector{2,T}(1,3)), LinearMap{T}(2.0))
     @test domaintype(component(m5,1)) == SVector{2,T}
     @test domaintype(component(m5,2)) == T
@@ -606,7 +618,7 @@ function test_product_map(T)
 
     m6 = ProductMap([ma,mb])
     @test m6 isa DomainSets.VectorProductMap
-    @test dimension(m6) == 2
+    @test mapsize(m6) == (2,2)
     @test convert(Map{SVector{2,T}}, m6) isa DomainSets.VcatMap
     test_generic_map(m6)
 

@@ -51,6 +51,7 @@ isaffine(m::AbstractAffineMap) = true
 
 ==(m1::AbstractAffineMap, m2::AbstractAffineMap) =
     matrix(m1) == matrix(m2) && vector(m1) == vector(m2)
+hash(m::AbstractAffineMap, h::UInt) = hashrec(h, matrix(m), vector(m))
 
 ==(m1::AbstractAffineMap, m2::IdentityMap) =
     islinear(m1) && matrix(m1) == matrix(m2)
@@ -312,7 +313,6 @@ isreal(m::Translation) = isreal(unsafe_vector(m))
 
 ==(m1::Translation, m2::Translation) = unsafe_vector(m1)==unsafe_vector(m2)
 
-
 similarmap(m::Translation, ::Type{T}) where {T} = Translation{T}(m.b)
 
 applymap(m::Translation, x) = _applymap(m, x, unsafe_vector(m))
@@ -369,6 +369,9 @@ AffineMap{T}(A::UniformScaling{Bool}, b::Number) where {T} = ScalarAffineMap{T}(
 AffineMap{T}(A, b) where {T} = GenericAffineMap{T}(A, b)
 
 similarmap(m::AffineMap, ::Type{T}) where {T} = AffineMap{T}(m.A, m.b)
+
+convert(::Type{AffineMap}, m) = (@assert isaffine(m); AffineMap(matrix(m), vector(m)))
+convert(::Type{AffineMap{T}}, m) where {T} = (@assert isaffine(m); AffineMap{T}(matrix(m), vector(m)))
 
 # If y = A*x+b, then x = inv(A)*(y-b) = inv(A)*y - inv(A)*b
 inverse(m::AffineMap) = (@assert issquaremap(m); AffineMap(inv(m.A), -inv(m.A)*m.b))

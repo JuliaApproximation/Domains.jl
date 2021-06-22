@@ -54,6 +54,7 @@ isempty(d::OpenBall) = radius(d) == 0
 
 ==(d1::Ball, d2::Ball) = isclosedset(d1)==isclosedset(d2) &&
     radius(d1)==radius(d2) && center(d1)==center(d2)
+hash(d::Ball, h::UInt) = hashrec("Ball", isclosedset(d), radius(d), center(d), h)
 
 function issubset(d1::Ball, d2::Ball)
     if dimension(d1) == dimension(d2)
@@ -77,6 +78,10 @@ function issubset(d1::Ball, d2::Ball)
         false
     end
 end
+
+normal(d::Ball, x) = normal(boundary(d), x)
+
+distance_to(d::Ball, x) = x ∈ d ? zero(prectype(d)) : norm(x-center(d))-radius(d)
 
 # We choose the center of the ball here. Concrete types should implement 'center'
 point_in_domain(d::Ball) = center(d)
@@ -108,6 +113,7 @@ indomain(x, d::OpenUnitBall) = norm(x) < 1
 indomain(x, d::ClosedUnitBall) = norm(x) <= 1
 approx_indomain(x, d::OpenUnitBall, tolerance) = norm(x) < 1+tolerance
 approx_indomain(x, d::ClosedUnitBall, tolerance) = norm(x) <= 1+tolerance
+
 
 
 ==(d1::UnitBall, d2::UnitBall) = isclosedset(d1)==isclosedset(d2) &&
@@ -285,7 +291,11 @@ isempty(::Sphere) = false
 isclosedset(::Sphere) = true
 isopenset(::Sphere) = false
 
-point_in_domain(d::Sphere) = center(d) + unitvector(d)
+normal(d::Sphere, x) = (x-center(x))/norm(x-center(x))
+
+distance_to(d::Sphere, x) = abs(norm(x-center(d))-radius(d))
+
+point_in_domain(d::Sphere) = center(d) + unitvector(d, 1)
 
 ==(d1::Sphere, d2::Sphere) = radius(d1)==radius(d2) && center(d1)==center(d2)
 
@@ -301,6 +311,8 @@ abstract type UnitSphere{T} <: Sphere{T} end
 
 radius(::UnitSphere) = 1
 center(d::UnitSphere{T}) where {T<:StaticTypes} = zero(T)
+
+normal(d::UnitSphere, x) = x/norm(x)
 
 indomain(x, d::UnitSphere) = norm(x) == 1
 approx_indomain(x, d::UnitSphere, tolerance) =

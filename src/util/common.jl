@@ -12,13 +12,24 @@ euclideandimension(::Type{T}) where {N,T <: StaticVector{N}} = N
 euclideandimension(::Type{T}) where {N,T <: NTuple{N,Any}} = N
 # Does not apply to Vector{T}: we don't know its dimension
 
-unitvector(d::Domain{T}) where {N,S,T<:SVector{N,S}} = SVector{N,S}(ntuple(i -> i==1, N))
-function unitvector(d::Domain{T}) where {T<:AbstractVector}
+unitvector(d::Domain{T}, dim) where {N,S,T<:SVector{N,S}} = SVector{N,S}(ntuple(i -> i==dim, N))
+function unitvector(d::Domain{T}, dim) where {T<:AbstractVector}
     p = zeros(eltype(T), dimension(d))
-    p[1] = 1
+    p[dim] = 1
     p
 end
-unitvector(d::Domain{T}) where {T<:Number} = one(T)
+unitvector(d::Domain{T}, dim) where {T<:Number} = (@assert dim==1; one(T))
+
+origin(d::Domain{T}) where {T <: StaticTypes} = zero(T)
+function origin(d::Domain{T}) where {T <: AbstractVector}
+	p = similar(point_in_domain(d))
+	fill!(p, 0)
+	convert(T, p)
+end
+
+"Apply the `hash` function recursively to the given arguments."
+hashrec(h) = hash(h)
+hashrec(h, args...) = hash(h, hashrec(args...))
 
 #################
 # Precision type
@@ -127,3 +138,4 @@ end
 # we use matrix_pinv rather than pinv to preserve static matrices
 matrix_pinv(A) = pinv(A)
 matrix_pinv(A::SMatrix{M,N}) where {M,N} = SMatrix{N,M}(pinv(A))
+matrix_pinv(A::SVector{N}) where {N} = convert(Transpose{Float64, SVector{N,Float64}}, pinv(A))

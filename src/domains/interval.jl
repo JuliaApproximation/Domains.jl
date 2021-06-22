@@ -5,6 +5,9 @@ iscompact(d::TypedEndpointsInterval) = false
 isinterval(d::Domain) = false
 isinterval(d::AbstractInterval) = true
 
+hash(d::AbstractInterval, h::UInt) =
+    hashrec(isleftopen(d), isrightopen(d), leftendpoint(d), rightendpoint(d), h)
+
 Display.object_parentheses(::AbstractInterval) = true
 
 approx_indomain(x, d::AbstractInterval, tolerance) =
@@ -25,12 +28,38 @@ function point_in_domain(d::AbstractInterval)
     mean(d)
 end
 
+# For an interval of integers, try to find an integer point
+function point_in_domain(d::AbstractInterval{T}) where {T<:Integer}
+    isempty(d) && throw(BoundsError())
+    x = round(T, mean(d))
+    if x ∈ d
+        x
+    else
+        # the mean is not inside the interval when rounded, this means
+        # we have to choose an endpoint
+        if isleftclosed(d)
+            leftendpoint(d)
+        elseif isrightclosed(d)
+            rightendpoint(d)
+        else
+            # the interval is open and contains no integers in its interior
+            throw(BoundsError())
+        end
+    end
+end
+
+
 isapprox(d1::AbstractInterval, d2::AbstractInterval) =
     isapprox(leftendpoint(d1), leftendpoint(d2); atol=default_tolerance(d1)) &&
     isapprox(rightendpoint(d1), rightendpoint(d2); atol=default_tolerance(d1))
 
 
 boundary(d::AbstractInterval) = Point(leftendpoint(d)) ∪ Point(rightendpoint(d))
+corners(d::AbstractInterval) = [leftendpoint(d), rightendpoint(d)]
+
+normal(d::AbstractInterval, x) = (abs(minimum(d)-x) < abs(maximum(d)-x)) ? -one(eltype(d)) : one(eltype(d))
+
+distance_to(d::AbstractInterval, x) = x ∈ d ? zero(eltype(d)) : min(abs(x-supremum(d)), abs(x-infimum(d)))
 
 boundingbox(d::AbstractInterval) = d
 

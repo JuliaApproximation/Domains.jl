@@ -2,6 +2,9 @@
 "A `HyperRectangle` is the cartesian product of intervals."
 abstract type HyperRectangle{T} <: ProductDomain{T} end
 
+convert(::Type{HyperRectangle}, d::ProductDomain) =
+	ProductDomain(map(t->convert(AbstractInterval, t), components(d)))
+
 boundingbox(d::HyperRectangle) = d
 
 "Compute all corners of the hyperrectangle."
@@ -9,14 +12,138 @@ function corners(d::HyperRectangle)
 	left = infimum(d)
 	right = supremum(d)
     N = length(left)
-    corners = [zeros(numtype(d), N) for i in 1:2^N]
+    corners = [similar(point_in_domain(d)) for i in 1:2^N]
     # All possible permutations of the corners
     for i=1:2^length(left)
         for j=1:N
             corners[i][j] = ((i>>(j-1))%2==0) ? left[j] : right[j]
         end
     end
-    corners
+    [convert(eltype(d), p) for p in corners]
+end
+
+# map the interval [a,b] to a cube defined by c (bottom-left) and d (top-right)
+cube_face_map(a::Number, b::Number, c::SVector{2}, d::SVector{2}) = AffineMap((d-c)/(b-a), c - (d-c)/(b-a)*a)
+function cube_face_map(a::Number, b::Number, c::Vector, d::Vector)
+	@assert length(c) == length(d) == 2
+	AffineMap((d-c)/(b-a), c - (d-c)/(b-a)*a)
+end
+
+# map the cube defined by a and b, to the cube defined by c and d,
+# where the dimension of c and d is one larger, and one of the coordinates (dim) is fixed to dimval.
+function cube_face_map(a::SVector{M}, b::SVector{M}, c::SVector{N}, d::SVector{N}, dim, dimval) where {N,M}
+	@assert N == M+1
+	T = promote_type(eltype(a),eltype(c))
+	A = MMatrix{N,M,T}(undef)
+	B = MVector{N,T}(undef)
+	fill!(A, 0)
+	fill!(B, 0)
+	B[dim] = dimval
+	for m = 1:dim-1
+		# scalar map along the dimension "m"
+		mapdim = interval_map(a[m], b[m], c[m], d[m])
+		A[m,m] = mapdim.A
+		B[m] = mapdim.b
+	end
+	for m = dim+1:N
+		mapdim = interval_map(a[m-1], b[m-1], c[m], d[m])
+		A[m,m-1] = mapdim.A
+		B[m] = mapdim.b
+	end
+	AffineMap(SMatrix{N,M}(A), SVector{N}(B))
+end
+
+function cube_face_map(a::Vector, b::Vector, c::Vector, d::Vector, dim, dimval)
+	M = length(a)
+	N = length(c)
+	@assert length(a)==length(b)
+	@assert length(c)==length(d)
+	@assert N == M+1
+	T = promote_type(eltype(a),eltype(c))
+	A = Matrix{T}(undef, N, M)
+	B = Vector{T}(undef, N)
+	fill!(A, 0)
+	fill!(B, 0)
+	B[dim] = dimval
+	for m = 1:dim-1
+		# scalar map along the dimension "m"
+		mapdim = interval_map(a[m], b[m], c[m], d[m])
+		A[m,m] = mapdim.A
+		B[m] = mapdim.b
+	end
+	for m = dim+1:N
+		mapdim = interval_map(a[m-1], b[m-1], c[m], d[m])
+		A[m,m-1] = mapdim.A
+		B[m] = mapdim.b
+	end
+	AffineMap(A, B)
+end
+
+# The boundary of a rectangle is a collection of mapped lower-dimensional rectangles.
+# Dimension 2 is a special case, because the lower dimension is 1 where we use
+# scalars instead of vectors
+function boundary(d::HyperRectangle{SVector{2,T}}) where {T}
+	left = infimum(d)
+	right = supremum(d)
+	x1 = left[1]; y1 = left[2]; x2 = right[1]; y2 = right[2]
+	d_unit = UnitInterval{T}()
+	maps = [
+		cube_face_map(zero(T), one(T), SVector(x1,y1), SVector(x2,y1)),
+		cube_face_map(zero(T), one(T), SVector(x2,y1), SVector(x2,y2)),
+		cube_face_map(zero(T), one(T), SVector(x2,y2), SVector(x1,y2)),
+		cube_face_map(zero(T), one(T), SVector(x1,y2), SVector(x1,y1))
+	]
+	faces = map(m -> ParametricDomain(m, d_unit), maps)
+	UnionDomain(faces)
+end
+
+function boundary(d::HyperRectangle{SVector{N,T}}) where {N,T}
+	left2 = infimum(d)
+	right2 = supremum(d)
+	d_unit = UnitCube{SVector{N-1,T}}()
+	left1 = infimum(d_unit)
+	right1 = supremum(d_unit)
+
+	map1 = cube_face_map(left1, right1, left2, right2, 1, left2[1])
+	MAP = typeof(map1)
+	maps = MAP[]
+	for dim in 1:N
+		push!(maps, cube_face_map(left1, right1, left2, right2, dim, left2[dim]))
+		push!(maps, cube_face_map(left1, right1, left2, right2, dim, right2[dim]))
+	end
+	faces = map(m -> ParametricDomain(m, d_unit), maps)
+	UnionDomain(faces)
+end
+
+function boundary(d::HyperRectangle{Vector{T}}) where {T}
+	if dimension(d) == 2
+		left = infimum(d)
+		right = supremum(d)
+		x1 = left[1]; y1 = left[2]; x2 = right[1]; y2 = right[2]
+		d_unit = UnitInterval{T}()
+		maps = [
+			cube_face_map(zero(T), one(T), [x1,y1], [x2,y1]),
+			cube_face_map(zero(T), one(T), [x2,y1], [x2,y2]),
+			cube_face_map(zero(T), one(T), [x2,y2], [x1,y2]),
+			cube_face_map(zero(T), one(T), [x1,y2], [x1,y1])
+		]
+	else
+		left2 = infimum(d)
+		right2 = supremum(d)
+		d_unit = UnitCube(dimension(d)-1)
+		left1 = infimum(d_unit)
+		right1 = supremum(d_unit)
+
+		map1 = cube_face_map(left1, right1, left2, right2, 1, left2[1])
+		MAP = typeof(map1)
+		maps = MAP[]
+		for dim in 1:dimension(d)
+			push!(maps, cube_face_map(left1, right1, left2, right2, dim, left2[dim]))
+			push!(maps, cube_face_map(left1, right1, left2, right2, dim, right2[dim]))
+		end
+	end
+	faces = map(m -> ParametricDomain(m, d_unit), maps)
+	UnionDomain(faces)
 end
 
 

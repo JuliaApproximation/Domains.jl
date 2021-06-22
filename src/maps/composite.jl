@@ -77,6 +77,7 @@ composedmap2(m1, m2::ComposedMap) = ComposedMap(m1, components(m2)...)
 
 ==(m1::ComposedMap, m2::ComposedMap) =
     ncomponents(m1) == ncomponents(m2) && all(map(isequal, components(m1), components(m2)))
+hash(m::ComposedMap, h::UInt) = hashrec("ComposedMap", collect(components(m)), h)
 
 Display.combinationsymbol(m::ComposedMap) = Display.Symbol('∘')
 Display.displaystencil(m::ComposedMap) =
